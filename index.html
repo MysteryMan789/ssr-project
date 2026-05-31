@@ -381,7 +381,7 @@
         }
 
         async function resolve_final_ending(choice) {
-            await delayed_print("Please stand by as we compute your destiny...        ", 1.0);
+            await delayed_print("Please stand by as we compute your destiny...        ", 2.5);
             
             // Ending Evaluation
             if (choice === "1") {
@@ -395,14 +395,26 @@
                     await delayed_print("The Sleeper easily overpowers your strike, freezing Earth into an eternal ice age.", 1.2);
                 }
             } else if (choice === "2") {
-                if (state["trust"] >= 6 || state["inventory"].includes("Heavenly Blessing")) {
-                    await delayed_print("✨ DIVINE REDEMPTION ENDING.", 0.8);
-                    await delayed_print("The immense trust shared with your companion (or your divine blessing) harmonizes your spirits.", 0.8);
-                    await delayed_print("The Sleeper remembers his true past life, sheds a tear, and surrenders peacefully.", 1.2);
-                } else {
-                    await delayed_print("💔 Escape Ending.", 0.8);
-                    await delayed_print("You try to show him his past, but your weak trust score shatters the psychic link.", 0.8);
-                    await delayed_print("The Sleeper hesitates and retreats into the dark. Time thaws, but he is still out there waiting...", 1.2);
+                if (!state["companion-captured"]) {
+                    if (state["trust"] >= 6 || state["inventory"].includes("Heavenly Blessing")) {
+                        await delayed_print("✨ DIVINE REDEMPTION ENDING.", 0.8);
+                        await delayed_print("The immense trust shared with your companion (or your divine blessing) harmonizes your spirits.", 0.8);
+                        await delayed_print("The Sleeper remembers his true past life, sheds a tear, and surrenders peacefully.", 1.2);
+                    } else {
+                        await delayed_print("💔 Escape Ending.", 0.8);
+                        await delayed_print("You try to show him his past, but your weak trust score shatters the psychic link.", 0.8);
+                        await delayed_print("The Sleeper hesitates and retreats into the dark. Time thaws, but he is still out there waiting...", 1.2);
+                    }
+                }
+                else {
+                    if (state["inventory"].includes("Heavenly Blessing")) {
+                        await delayed_print("✨ SOLITARY DIVINE BLISS ENDING.", 0.8);
+                        await delayed_print("Though you stand alone, the Heavenly Blessing from your high Karma shows.", 0.8);
+                        await delayed_print("The gods bless you with the strength to project the memories yourself, forcing the Sleeper to surrender peacefully.", 1.2);
+                    } else {
+                        await delayed_print("You try to show him his past, but standing alone without your companion or divine aid shatters your focus.", 0.8);
+                        await delayed_print("The Sleeper hesitates and retreats into the dark. Time thaws, but he is still out there waiting...", 1.2);
+                    }
                 }
             }
 
@@ -415,7 +427,7 @@
             await delayed_print("Initializing game states, please wait one second..", 2.0);
 
             // Randomly assign character role
-            if (Math.floor(Math.random() * 2) + 1 === 1) {
+            if (Math.random < 0.5) {
                 state["character"] = "aru";
             } else {
                 state["character"] = "mini";
