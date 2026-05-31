@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pandava Journey</title>
+    <style>
+        :root {
+            --bg-color: #0d0e15;
+            --panel-color: #161824;
+            --text-color: #cdd6f4;
+            --accent-gold: #f9e2af;
+            --accent-blue: #89b4fa;
+            --border-color: #313244;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 750px;
+            background-color: var(--panel-color);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-sizing: border-box;
+        }
+
+        .hud {
+            border: 2px dashed var(--accent-gold);
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .hud-line {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .hud-label {
+            color: var(--accent-gold);
+            font-weight: bold;
+        }
+
+        .terminal-display {
+            min-height: 300px;
+            max-height: 450px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            background-color: #090a0f;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+
+        .text-line {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        button {
+            background-color: var(--panel-color);
+            color: var(--text-color);
+            border: 1px solid var(--accent-blue);
+            padding: 12px 15px;
+            text-align: left;
+            font-family: inherit;
+            font-size: 0.95rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--accent-blue);
+            color: var(--bg-color);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <div class="hud" id="hud-container" style="display: none;">
+            <div class="hud-line">
+                <div><span class="hud-label">HERO:</span> <span id="hud-hero"></span></div>
+                <div><span class="hud-label">Karma:</span> <span id="hud-karma"></span></div>
+                <div><span class="hud-label">Trust:</span> <span id="hud-trust"></span></div>
+            </div>
+            <div style="margin-top: 6px;"><span class="hud-label">Inventory:</span> <span id="hud-inventory"></span></div>
+        </div>
+
+        <div class="terminal-display" id="log"></div>
+        <div class="options-container" id="options"></div>
+    </div>
+
+    <script>
+        // Game state
+        const state = {
+            "character": "",              // Track selected identity (Aru or Mini)
+            "karma": 10,                  // High karma unlocks divine interventions/blessings
+            "trust": 5,                    
+            "inventory": [],              
+            "companion_captured": false,  // Foreshadowing...
+            "current_scene": 1
+        };
+
+        const logEl = document.getElementById("log");
+        const optionsEl = document.getElementById("options");
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Useful functions that I don't want to rewrite a billion times
+        async function delayed_print(msg, delay = 0.5) {
+            // Prints text cleanly with formatting pauses for an immersive UI experience.
+            const div = document.createElement("div");
+            div.className = "text-line";
+            div.innerText = msg;
+            logEl.appendChild(div);
+            logEl.scrollTop = logEl.scrollHeight;
+            await sleep(delay * 1000);
+        }
+
+        function character_intros(character) {
+            // Provides mythological profiles based on the assigned protagonist.
+            if (character === "aru") {
+                return (
+                    "HERO PROFILE: You are Aru Shah, a witty, imaginative seventh grader.\n" +
+                    "You tend to, ah, stretch the truth a bit. However, your creativity and quick wits\n" +
+                    "are your greatest weapons against the forces of the cosmic calamity."
+                );
+            } else if (character === "mini") {
+                return (
+                    "HERO PROFILE: You are Mini, an analytical and careful daughter of the gods.\n" +
+                    "You know every medical disease and demon weakness by heart (\"And then you could die!\"),\n" +
+                    "but your lack of self confidence is your weaknes"
+                );
+            }
+        }
+
+        function display_status() {
+            // Outputs a polished HUD tracking player state.
+            document.getElementById("hud-container").style.display = "block";
+            document.getElementById("hud-hero").innerText = state["character"].toUpperCase();
+            document.getElementById("hud-karma").innerText = state["karma"];
+            document.getElementById("hud-trust").innerText = state["trust"];
+            
+            if (state["inventory"].length > 0) {
+                document.getElementById("hud-inventory").innerText = "['" + state["inventory"].join("', '") + "']";
+            } else {
+                document.getElementById("hud-inventory").innerText = "[]";
+            }
+        }
+
+        function get_valid_input(choices, callback) {
+            // Makes sure that all inputs are valid
+            optionsEl.innerHTML = "";
+            choices.forEach(opt => {
+                const btn = document.createElement("button");
+                btn.innerText = opt.text;
+                btn.onclick = async () => {
+                    optionsEl.innerHTML = "";
+                    await callback(opt.value);
+                };
+                optionsEl.appendChild(btn);
+            });
+        }
+
+        // Scenes
+
+        async function play_scene_1() {
+            await delayed_print("🎬 SCENE 1: THE MUSEUM DARE", 1.0);
+            await delayed_print("You stand inside the Museum of Ancient Indian Art and Culture.", 0.8);
+            await delayed_print("Classmates are mocking you, demanding you light the cursed Lamp of Bharata.", 0.8);
+            
+            if (state["character"] === "aru") {
+                await delayed_print("You want to show that you're not a liar. Yet something about the lamp makes you feel a tiny bit of worry.", 0.8);
+            } else {
+                await delayed_print("Your anxiety spikes. You know breaking rules can anger the gods. It goes without mention that angering the gods is probably not the best idea.", 0.8);
+            }
+            
+            await delayed_print("\n--- WHAT DO YOU DO? ---", 0);
+            
+            get_valid_input([
+                { text: " [1] (MAJOR CHOICE 1) Light the lamp using a glowing, magical match found in the archives.", value: "1" },
+                { text: " [2] (MAJOR CHOICE 1) Shatter the lamp on the floor to aggressively prove its fake 'magic'.", value: "2" },
+                { text: " [3] (MINOR CHOICE 1) Roll your eyes, make a witty sarcastic joke, and casually light it with a regular match.", value: "3" }
+            ], resolve_scene_1);
+        }
+
+        async function resolve_scene_1(choice) {
+            if (choice === "1") {
+                state["inventory"].push("Mystic Spark");
+                state["karma"] -= 1;
+                await delayed_print("\nThe magical match catches. The shadows twist violently as the Sleeper wakes up.", 1.0);
+            } else if (choice === "2") {
+                state["inventory"].push("Sacred Shard");
+                state["karma"] += 1;
+                await delayed_print("\nYou smash the stand! The seal breaks under physical duress, unleashing the Sleeper.", 1.0);
+            } else if (choice === "3") {
+                state["trust"] -= 1;
+                state["karma"] -= 3;
+                state["inventory"].push("Common Match");
+                await delayed_print("\nYour sarcasm doesn't hide the freezing terror as a normal flame awakens the Sleeper. The gods watch in disapproval at your actions.", 1.0);
+            }
+
+            await delayed_print("⚠️THE LEGEND OF THE SLEEPER", 1.5);
+            await delayed_print("Long ago, there was a man named Suyodhana who was destined to destroy the world.", 1);
+            await delayed_print("After he was trapped in a diya, he was referred to as 'The Sleeper.'", 1);
+            await delayed_print("Legends say that if he is freed, he will freeze Time and journey to Shiva, the Lord of Destruction.", 1);
+            await delayed_print("There, he will perform a cosmic dance which will end the world.", 0.5);
+
+            state["current_scene"] = 2;
+            display_status();
+            await play_scene_2();
+        }
+
+        async function play_scene_2() {
+            await delayed_print("\n🎬 SCENE 2: MEETING THE COMPANION", 1.0);
+            await delayed_print("Time freezes completely. Your classmates stand perfectly still like a statue.", 0.8);
+            await delayed_print("Out of the shadows, Boo - a grumpy talking pigeon thing - flies down to guide you.", 0.8);
+            
+            let companion = state["character"] === "aru" ? "Mini" : "Aru";
+            await delayed_print(`Suddenly, your mythological soul-sister, ${companion}, emerges looking absolutely terrified.`, 0.8);
+            
+            await delayed_print(`\n--- HOW DO YOU GREET ${companion.toUpperCase()}? ---`, 0);
+
+            get_valid_input([
+                { text: " [1] (MINOR CHOICE 2) Offer a reassuring hug and promise that you will fix this crisis together.", value: "1" },
+                { text: " [2] (MINOR CHOICE 2) Ignore her panic completely and demand that Boo tell you the battle plan.", value: "2" }
+            ], async (choice) => {
+                if (choice === "1") {
+                    state["trust"] += 3;
+                    await delayed_print(`\n${companion} inhales deeply and takes your hand. Your bond strengthens!`, 1.0);
+                } else if (choice === "2") {
+                    state["trust"] -= 2;
+                    await delayed_print(`\nBoo clucks his tongue in disgust. ${companion} backs away, afraid of your cold demeanor.`, 1.0);
+                }
+                
+                state["current_scene"] = 3;
+                display_status();
+                await play_scene_3();
+            });
+        }
+
+        async function play_scene_3() {
+            // SCENE 3: A major structural branch that dynamically dictates companion availability.
+            await delayed_print("\n🎬 SCENE 3: THE PALACE OF ILLUSIONS (THE PANDAVA HOUSE)", 1.0);
+            await delayed_print("You step inside the living, sentient Palace of Illusions—ancient home of your ancestors.", 0.8);
+            await delayed_print("The palace's magical voice booms, testing your soul to see if you are worthy.", 0.8);
+            
+            if (state["character"] === "aru") {
+                await delayed_print("You are thrown into a fake forest. Fiery fireflies swarm you; you hold a bow with one arrow.", 0.8);
+                await delayed_print("To escape, you must hit an invisible target. If you miss, the illusion consumes you.", 0.8);
+                await delayed_print("\n--- HOW DO YOU AIM YOUR ARROW? ---", 0);
+                
+                get_valid_input([
+                    { text: " [1] (MAJOR CHOICE 2) Trust your instincts, channel the legendary archer Arjuna, and target the center.", value: "1" },
+                    { text: " [2] (MAJOR CHOICE 2) Panic and aggressively fire blindly into the shadows to clear the bugs.", value: "2" }
+                ], resolve_scene_3);
+            } else {
+                await delayed_print("You are trapped in a mirrored chamber where a flawless clone of yourself appears.", 0.8);
+                await delayed_print("The clone berates you, weaponizing your deepest insecurities, calling you weak.", 0.8);
+                await delayed_print("\n--- HOW DO YOU CONFRONT YOUR CLONE? ---", 0);
+                
+                get_valid_input([
+                    { text: " [1] (MAJOR CHOICE 2) Stand your ground, look past your anxiety, and logicalize your way out.", value: "1" },
+                    { text: " [2] (MAJOR CHOICE 2) Cover your ears and scream aggressively at the clone to break the glass.", value: "2" }
+                ], resolve_scene_3);
+            }
+        }
+
+        async function resolve_scene_3(choice) {
+            let companion = state["character"] === "aru" ? "Mini" : "Aru";
+            
+            if (choice === "1") {
+                state["karma"] += 2;
+                if (state["character"] === "aru") {
+                    await delayed_print("\nYou channel Arjuna's focus! The arrow strikes an unseen door, shattering the illusion.", 1.0);
+                } else {
+                    await delayed_print("\nYou out-argue your own anxiety! The clone turns to harmless smoke.", 1.0);
+                }
+            } else if (choice === "2") {
+                state["companion_captured"] = true;
+                state["trust"] -= 3;
+                if (state["character"] === "aru") {
+                    await delayed_print(`\n💥 You miss! The palace traps ${companion} in a side vault as punishment for reckless aim.`, 1.0);
+                } else {
+                    await delayed_print(`\n💥 Your screaming shatters the room, but walls slam down, separating you from ${companion}!`, 1.0);
+                }
+                await delayed_print("You are forced to trek toward the Kingdom of Death completely isolated.", 1.0);
+            }
+
+            state["current_scene"] = 4;
+            display_status();
+            await play_scene_4();
+        }
+
+        async function play_scene_4() {
+            // SCENE 4: Incorporates the final minor choice and implements a dynamic Karma Check.
+            await delayed_print("\n🎬 SCENE 4: SHUKRA'S BRIDGE", 1.0);
+            await delayed_print("You reach the Bridge of Forgetting, guarded by the beautiful, cursed sorcerer Shukra.", 0.8);
+            await delayed_print("Magical snow falls around you, slowly erasing your vital memories.", 0.8);
+            
+            // Divine intervention
+            if (state["karma"] >= 11) {
+                await delayed_print("\n✨ DIVINE INTERVENTION: Because of your high Karma, the heavens grant you a blessing!", 1.0);
+                await delayed_print("The warmth of the gods surrounds you, keeping your memories completely safe from the snow.", 1.0);
+                state["inventory"].push("Heavenly Blessing");
+            }
+            
+            await delayed_print("Shukra demands you surrender your memories entirely in exchange for safe passage.", 0.8);
+            await delayed_print("\n--- WHAT DO YOU DO ON THE BRIDGE? ---", 0);
+
+            get_valid_input([
+                { text: " [1] (MINOR CHOICE 3) Stand your ground and smash Shukra's mirrors to deflect the magic snow.", value: "1" },
+                { text: " [2] (MINOR CHOICE 3) Compromise and plead with him, sacrificing a minor memory to pass safely.", value: "2" }
+            ], async (choice) => {
+                if (choice === "1") {
+                    state["inventory"].push("Mirror Shard");
+                    await delayed_print("\n💥 Glass shatters! The memory snow blasts backward at Shukra, allowing you to cross safely.", 1.5);
+                    await delayed_print("\nBefore you leave, Shukra, pained, cold, curses you.", 1.5);
+                    await delayed_print("\"In the moment where it matters most, you, too, shall forget.\"", 1.5);
+                    state["karma"] -= 2;
+                } else if (choice === "2") {
+                    state["inventory"].push("Shukra's Frost");
+                    await delayed_print("\n❄️ You give up a precious minor childhood memory to peacefully escape across the bridge.", 1.0);
+                    state["karma"] += 1;
+                }
+
+                state["current_scene"] = 5;
+                display_status();
+                await play_scene_5();
+            });
+        }
+
+        async function play_scene_5() {
+            // SCENE 5: MAJOR CHOICE 3. The Climax. Integrates all tracking stats to calculate endings.
+            await delayed_print("\n🎬 FINAL SCENE: CONFRONTING THE SLEEPER", 1.0);
+            await delayed_print("You step into the dark, silent center of the cosmic Abyss.", 0.8);
+            await delayed_print("The massive Sleeper looms ahead, preparing to permanently freeze Time.", 0.8);
+            
+            let companion = state["character"] === "aru" ? "Mini" : "Aru";
+            
+            if (state["companion_captured"]) {
+                await delayed_print(`Because ${companion} was trapped in the Palace, you stand completely isolated and alone.`, 1.0);
+            } else {
+                await delayed_print(`Your companion, ${companion}, stands firmly at your flank, cosmic weapons raised in absolute unity.`, 1.0);
+            }
+            
+            await delayed_print("\n--- THE FINAL ULTIMATUM (MAJOR CHOICE 3) ---", 0);
+
+            get_valid_input([
+                { text: " [1] Strike the Sleeper directly using raw, devastating celestial power.", value: "1" },
+                { text: " [2] Use the Pool of Past Lives to project memories of his forgotten family.", value: "2" }
+            ], resolve_final_ending);
+        }
+
+        async function resolve_final_ending(choice) {
+            await delayed_print("Please stand by as we compute your destiny...        ", 1.0);
+            
+            // Ending Evaluation
+            if (choice === "1") {
+                if (state["inventory"].includes("Mirror Shard") && !state["companion_captured"]) {
+                    await delayed_print("🏆 TRUE HERO VICTORY ENDING!", 0.8);
+                    await delayed_print("With your companion by your side and the mirror shard deflecting his shadows,", 0.8);
+                    await delayed_print("you cleanly banish the Sleeper. Time restarts and the human world is saved!", 1.2);
+                } else {
+                    await delayed_print("❄️ TRAGIC WINTER ENDING.", 0.8);
+                    await delayed_print("Your raw attack lacked proper mirror relics or companion backup.", 0.8);
+                    await delayed_print("The Sleeper easily overpowers your strike, freezing Earth into an eternal ice age.", 1.2);
+                }
+            } else if (choice === "2") {
+                if (state["trust"] >= 6 || state["inventory"].includes("Heavenly Blessing")) {
+                    await delayed_print("✨ DIVINE REDEMPTION ENDING.", 0.8);
+                    await delayed_print("The immense trust shared with your companion (or your divine blessing) harmonizes your spirits.", 0.8);
+                    await delayed_print("The Sleeper remembers his true past life, sheds a tear, and surrenders peacefully.", 1.2);
+                } else {
+                    await delayed_print("💔 Escape Ending.", 0.8);
+                    await delayed_print("You try to show him his past, but your weak trust score shatters the psychic link.", 0.8);
+                    await delayed_print("The Sleeper hesitates and retreats into the dark. Time thaws, but he is still out there waiting...", 1.2);
+                }
+            }
+
+            await delayed_print("\nGame over. Thanks for playing!", 0.5);
+        }
+
+        // Actual thing
+        async function run_game_engine() {
+            await delayed_print("Welcome to: Pandava Journey!", 0.5);
+            await delayed_print("Initializing game states, please wait one second..", 2.0);
+
+            // Randomly assign character role
+            if (Math.floor(Math.random() * 2) + 1 === 1) {
+                state["character"] = "aru";
+            } else {
+                state["character"] = "mini";
+            }
+                
+            let intro_text = character_intros(state["character"]);
+            await delayed_print(intro_text, 1.5);
+
+            // Runs the thing
+            display_status();
+            await play_scene_1();
+        }
+
+        window.onload = run_game_engine;
+    </script>
+</body>
+</html>
