@@ -396,7 +396,7 @@
                     await delayed_print("The Sleeper easily overpowers your strike, freezing Earth into an eternal ice age.", 1.2);
                 }
             } else if (choice === "2") {
-                if (!state["companion-captured"]) {
+                if (!state["companion_captured"]) {
                     if (state["trust"] >= 6 || state["inventory"].includes("Heavenly Blessing")) {
                         await delayed_print("✨ DIVINE REDEMPTION ENDING.", 0.8);
                         await delayed_print("The immense trust shared with your companion (or your divine blessing) harmonizes your spirits.", 0.8);
